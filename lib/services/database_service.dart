@@ -39,12 +39,19 @@ class DatabaseService {
 
     return await openDatabase(
       dbPath,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute('CREATE TABLE IF NOT EXISTS janrlar (id TEXT PRIMARY KEY, name TEXT NOT NULL)');
           await db.execute('CREATE TABLE IF NOT EXISTS turlar (id TEXT PRIMARY KEY, name TEXT NOT NULL)');
+        }
+        if (oldVersion < 3) {
+          await _createAdminTable(db);
+          // Avvalgi versiyalardagi demo (namuna) yozuvlarni o'chiramiz
+          await db.delete('book_issues', where: "id IN ('iss_001','iss_002','iss_003','iss_004')");
+          await db.delete('books', where: "id IN ('bk_001','bk_002','bk_003','bk_004','bk_005')");
+          await db.delete('users', where: "id IN ('usr_001','usr_002','usr_003','usr_004','usr_005')");
         }
       },
     );
@@ -132,7 +139,19 @@ class DatabaseService {
       )
     ''');
 
+    await _createAdminTable(db);
     await _seedInitialData(db);
+  }
+
+  Future<void> _createAdminTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS admin (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        username TEXT NOT NULL,
+        passwordHash TEXT NOT NULL,
+        salt TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _seedInitialData(Database db) async {
@@ -178,203 +197,22 @@ class DatabaseService {
     for (var t in turlar) {
       await db.insert('turlar', t.toMap());
     }
+  }
 
-    // 5. Kursantlar (Strictly Alphabetical)
-    final users = [
-      UserModel(
-        id: 'usr_003',
-        fullName: 'Karimov Jasur Anvarovich',
-        bosqichId: 'b_1',
-        bosqichName: '1-bosqich (1-kurs)',
-        guruhId: 'g_102',
-        guruhName: '102-guruh',
-        phone: '+998 93 345-67-89',
-        readerCardId: 'IIL-CARD-2025-003',
-        createdAt: '2025-01-12T08:00:00.000',
-      ),
-      UserModel(
-        id: 'usr_002',
-        fullName: 'Mamasarulov Sharof Olimovich',
-        bosqichId: 'b_1',
-        bosqichName: '1-bosqich (1-kurs)',
-        guruhId: 'g_101',
-        guruhName: '101-guruh',
-        phone: '+998 91 234-56-78',
-        readerCardId: 'IIL-CARD-2025-002',
-        createdAt: '2025-01-11T08:00:00.000',
-      ),
-      UserModel(
-        id: 'usr_001',
-        fullName: 'Narzullaev Daler Baxrullaevich',
-        bosqichId: 'b_1',
-        bosqichName: '1-bosqich (1-kurs)',
-        guruhId: 'g_101',
-        guruhName: '101-guruh',
-        phone: '+998 90 123-45-67',
-        readerCardId: 'IIL-CARD-2025-001',
-        createdAt: '2025-01-10T08:00:00.000',
-      ),
-      UserModel(
-        id: 'usr_004',
-        fullName: 'Oripov Sardor Farxodovich',
-        bosqichId: 'b_2',
-        bosqichName: '2-bosqich (2-kurs)',
-        guruhId: 'g_201',
-        guruhName: '201-guruh',
-        phone: '+998 94 456-78-90',
-        readerCardId: 'IIL-CARD-2025-004',
-        createdAt: '2025-01-13T08:00:00.000',
-      ),
-      UserModel(
-        id: 'usr_005',
-        fullName: 'Tursunov Alisher Rustamovich',
-        bosqichId: 'b_2',
-        bosqichName: '2-bosqich (2-kurs)',
-        guruhId: 'g_202',
-        guruhName: '202-guruh',
-        phone: '+998 97 567-89-01',
-        readerCardId: 'IIL-CARD-2025-101',
-        createdAt: '2025-01-05T08:00:00.000',
-      ),
-    ];
-    for (var u in users) {
-      await db.insert('users', u.toMap());
-    }
+  // --- ADMIN (LOGIN / PAROL) ---
+  Future<Map<String, dynamic>?> getAdmin() async {
+    final db = await database;
+    final rows = await db.query('admin', where: 'id = 1');
+    return rows.isEmpty ? null : rows.first;
+  }
 
-    // 6. Kitoblar
-    final books = [
-      BookModel(
-        id: 'bk_001',
-        title: 'O\'zbekiston Respublikasi Konstitutsiyasi va Huquq Asoslari',
-        author: 'Sh.M. Mirziyoyev jamoasi',
-        isbn: 'ISBN-978-9943-01-100-1',
-        category: 'Huquqshunoslik',
-        type: 'Darslik',
-        totalCopies: 40,
-        availableCopies: 37,
-        publishedYear: 2024,
-        publisher: 'O\'zbekiston NMIU',
-        locationRack: 'A-1-01',
-      ),
-      BookModel(
-        id: 'bk_002',
-        title: 'Kriminalistika va Tergov Taktikasi Asoslari',
-        author: 'Prof. A.R. Qodirov',
-        isbn: 'ISBN-978-9943-01-200-2',
-        category: 'Taktik / Harbiy',
-        type: 'O\'quv-uslubiy qo\'llanma',
-        totalCopies: 25,
-        availableCopies: 22,
-        publishedYear: 2023,
-        publisher: 'IIV Akademiyasi Nashriyoti',
-        locationRack: 'B-2-05',
-      ),
-      BookModel(
-        id: 'bk_003',
-        title: 'Informatika va Axborot Xavfsizligi Litsey Darsligi',
-        author: 'T.X. Xolmatov, N.I. Tayloqov',
-        isbn: 'ISBN-978-9943-01-300-3',
-        category: 'Axborot Texnologiyalari',
-        type: 'Darslik',
-        totalCopies: 50,
-        availableCopies: 48,
-        publishedYear: 2024,
-        publisher: 'Turon-Iqbol',
-        locationRack: 'C-3-12',
-      ),
-      BookModel(
-        id: 'bk_004',
-        title: 'O\'tkan Kunlar (Tarixiy Badiiy Asar)',
-        author: 'Abdulla Qodiriy',
-        isbn: 'ISBN-978-9943-01-400-4',
-        category: 'Badiiy Adabiyot',
-        type: 'Badiiy adabiyot',
-        totalCopies: 30,
-        availableCopies: 27,
-        publishedYear: 2022,
-        publisher: 'G\'afur G\'ulom',
-        locationRack: 'D-1-08',
-      ),
-      BookModel(
-        id: 'bk_005',
-        title: 'Maxsus Jismoniy va Jangovar Tayyorgarlik Qo\'llanmasi',
-        author: 'Polkovnik B.S. Yusupov',
-        isbn: 'ISBN-978-9943-01-500-5',
-        category: 'Taktik / Harbiy',
-        type: 'O\'quv-uslubiy qo\'llanma',
-        totalCopies: 20,
-        availableCopies: 18,
-        publishedYear: 2023,
-        publisher: 'IIV Litseylari Nashriyoti',
-        locationRack: 'B-3-01',
-      ),
-    ];
-    for (var bk in books) {
-      await db.insert('books', bk.toMap());
-    }
-
-    // 7. Berilgan Kitoblar (Book Issues)
-    final now = DateTime.now();
-    String dateStr(DateTime date) => "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-
-    final issues = [
-      BookIssueModel(
-        id: 'iss_001',
-        bookId: 'bk_001',
-        bookTitle: 'O\'zbekiston Respublikasi Konstitutsiyasi va Huquq Asoslari',
-        userId: 'usr_001',
-        userName: 'Narzullaev Daler Baxrullaevich',
-        userGroup: '101-guruh',
-        userStage: '1-bosqich (1-kurs)',
-        issueDate: dateStr(now.subtract(const Duration(days: 10))),
-        dueDate: dateStr(now.add(const Duration(days: 5))),
-        status: 'ISSUED',
-        notes: 'Semesterlik o\'quv mashg\'uloti uchun',
-      ),
-      BookIssueModel(
-        id: 'iss_002',
-        bookId: 'bk_002',
-        bookTitle: 'Kriminalistika va Tergov Taktikasi Asoslari',
-        userId: 'usr_002',
-        userName: 'Mamasarulov Sharof Olimovich',
-        userGroup: '101-guruh',
-        userStage: '1-bosqich (1-kurs)',
-        issueDate: dateStr(now.subtract(const Duration(days: 20))),
-        dueDate: dateStr(now.subtract(const Duration(days: 5))), // OVERDUE!
-        status: 'ISSUED',
-        notes: 'Kriminalistika fani amaliyoti uchun',
-      ),
-      BookIssueModel(
-        id: 'iss_003',
-        bookId: 'bk_003',
-        bookTitle: 'Informatika va Axborot Xavfsizligi Litsey Darsligi',
-        userId: 'usr_004',
-        userName: 'Oripov Sardor Farxodovich',
-        userGroup: '201-guruh',
-        userStage: '2-bosqich (2-kurs)',
-        issueDate: dateStr(now.subtract(const Duration(days: 15))),
-        dueDate: dateStr(now.subtract(const Duration(days: 1))), // OVERDUE!
-        status: 'ISSUED',
-        notes: 'Informatika fani imtihoniga tayyorgarlik',
-      ),
-      BookIssueModel(
-        id: 'iss_004',
-        bookId: 'bk_004',
-        bookTitle: 'O\'tkan Kunlar (Tarixiy Badiiy Asar)',
-        userId: 'usr_003',
-        userName: 'Karimov Jasur Anvarovich',
-        userGroup: '102-guruh',
-        userStage: '1-bosqich (1-kurs)',
-        issueDate: dateStr(now.subtract(const Duration(days: 25))),
-        dueDate: dateStr(now.subtract(const Duration(days: 10))),
-        returnDate: dateStr(now.subtract(const Duration(days: 2))),
-        status: 'RETURNED',
-        notes: 'A\'lo holatda qaytarildi',
-      ),
-    ];
-    for (var iss in issues) {
-      await db.insert('book_issues', iss.toMap());
-    }
+  Future<void> saveAdmin({required String username, required String passwordHash, required String salt}) async {
+    final db = await database;
+    await db.insert(
+      'admin',
+      {'id': 1, 'username': username, 'passwordHash': passwordHash, 'salt': salt},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   // --- BOSQICHLAR CRUD ---
@@ -389,6 +227,21 @@ class DatabaseService {
     await db.insert('bosqichlar', bosqich.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// Bosqich nomi kursantlar va guruhlar jadvalida ham saqlangani uchun birga yangilanadi
+  Future<void> updateBosqich(Bosqich bosqich) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.update('bosqichlar', bosqich.toMap(), where: 'id = ?', whereArgs: [bosqich.id]);
+      await txn.update('guruhlar', {'bosqichName': bosqich.name}, where: 'bosqichId = ?', whereArgs: [bosqich.id]);
+      await txn.update('users', {'bosqichName': bosqich.name}, where: 'bosqichId = ?', whereArgs: [bosqich.id]);
+    });
+  }
+
+  Future<void> deleteBosqich(String id) async {
+    final db = await database;
+    await db.delete('bosqichlar', where: 'id = ?', whereArgs: [id]);
+  }
+
   // --- GURUHLAR CRUD ---
   Future<List<Guruh>> getGuruhlar() async {
     final db = await database;
@@ -399,6 +252,25 @@ class DatabaseService {
   Future<void> insertGuruh(Guruh guruh) async {
     final db = await database;
     await db.insert('guruhlar', guruh.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// Guruh nomi/bosqichi o'zgarsa, unga biriktirilgan kursantlar ham yangilanadi
+  Future<void> updateGuruh(Guruh guruh) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.update('guruhlar', guruh.toMap(), where: 'id = ?', whereArgs: [guruh.id]);
+      await txn.update(
+        'users',
+        {'guruhName': guruh.name, 'bosqichId': guruh.bosqichId, 'bosqichName': guruh.bosqichName},
+        where: 'guruhId = ?',
+        whereArgs: [guruh.id],
+      );
+    });
+  }
+
+  Future<void> deleteGuruh(String id) async {
+    final db = await database;
+    await db.delete('guruhlar', where: 'id = ?', whereArgs: [id]);
   }
 
   // --- JANRLAR (GENRES) CRUD ---

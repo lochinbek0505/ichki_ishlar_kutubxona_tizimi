@@ -6,6 +6,7 @@ import '../models/user_model.dart';
 import '../providers/user_provider.dart';
 import '../services/local_file_service.dart';
 import '../theme/app_colors.dart';
+import 'bosqich_guruh_dialog.dart';
 import 'reader_card_dialog.dart';
 
 class UsersScreen extends StatefulWidget {
@@ -51,11 +52,22 @@ class _UsersScreenState extends State<UsersScreen> {
                   ),
                 ],
               ),
-              ElevatedButton.icon(
-                onPressed: () => _showAddEditUserDialog(context),
-                icon: const Icon(Icons.person_add_alt_1, size: 18),
-                label: const Text('Yangi Kursant Qo\'shish'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.goldPrimary, foregroundColor: AppColors.backgroundDark),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => showBosqichGuruhDialog(context),
+                    icon: const Icon(Icons.account_tree_outlined, size: 16, color: AppColors.emeraldAccent),
+                    label: const Text('Bosqich va Guruhlar', style: TextStyle(color: AppColors.emeraldAccent)),
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.emeraldAccent)),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton.icon(
+                    onPressed: () => _showAddEditUserDialog(context),
+                    icon: const Icon(Icons.person_add_alt_1, size: 18),
+                    label: const Text('Yangi Kursant Qo\'shish'),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.goldPrimary, foregroundColor: AppColors.backgroundDark),
+                  ),
+                ],
               ),
             ],
           ),

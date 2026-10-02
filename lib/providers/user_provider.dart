@@ -25,6 +25,8 @@ class UserProvider extends ChangeNotifier {
   List<Bosqich> get bosqichlar => _bosqichlar;
   List<Guruh> get guruhlar => _guruhlar;
 
+  int allUsersCountInGuruh(String guruhId) => _users.where((u) => u.guruhId == guruhId).length;
+
   List<UserModel> get users {
     final filtered = _users.where((u) {
       final query = _searchQuery.toLowerCase();
@@ -90,13 +92,53 @@ class UserProvider extends ChangeNotifier {
     await loadData();
   }
 
-  Future<void> addGuruh(Guruh guruh) async {
-    await _db.insertGuruh(guruh);
+  // --- BOSQICHLAR CRUD ---
+  Future<void> addBosqich(String name, int levelNumber) async {
+    await _db.insertBosqich(Bosqich(id: 'b_${DateTime.now().millisecondsSinceEpoch}', name: name, levelNumber: levelNumber));
     await loadData();
   }
 
-  Future<void> addBosqich(Bosqich bosqich) async {
-    await _db.insertBosqich(bosqich);
+  Future<void> updateBosqich(Bosqich bosqich) async {
+    await _db.updateBosqich(bosqich);
     await loadData();
+  }
+
+  /// O'chirib bo'lmasa sababini qaytaradi
+  Future<String?> deleteBosqich(String id) async {
+    final groupCount = _guruhlar.where((g) => g.bosqichId == id).length;
+    if (groupCount > 0) return 'Bu bosqichda $groupCount ta guruh bor. Avval guruhlarni o\'chiring yoki boshqa bosqichga o\'tkazing.';
+    final userCount = _users.where((u) => u.bosqichId == id).length;
+    if (userCount > 0) return 'Bu bosqichga $userCount nafar kursant biriktirilgan.';
+
+    await _db.deleteBosqich(id);
+    if (_selectedBosqichIdFilter == id) setBosqichFilter(null);
+    await loadData();
+    return null;
+  }
+
+  // --- GURUHLAR CRUD ---
+  Future<void> addGuruh(String name, Bosqich bosqich) async {
+    await _db.insertGuruh(Guruh(
+      id: 'g_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      bosqichId: bosqich.id,
+      bosqichName: bosqich.name,
+    ));
+    await loadData();
+  }
+
+  Future<void> updateGuruh(Guruh guruh) async {
+    await _db.updateGuruh(guruh);
+    await loadData();
+  }
+
+  Future<String?> deleteGuruh(String id) async {
+    final userCount = _users.where((u) => u.guruhId == id).length;
+    if (userCount > 0) return 'Bu guruhga $userCount nafar kursant biriktirilgan. Avval ularni boshqa guruhga o\'tkazing.';
+
+    await _db.deleteGuruh(id);
+    if (_selectedGuruhIdFilter == id) setGuruhFilter(null);
+    await loadData();
+    return null;
   }
 }

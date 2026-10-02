@@ -305,12 +305,12 @@ class _BooksScreenState extends State<BooksScreen> {
     final titleCtrl = TextEditingController(text: book?.title ?? '');
     final authorCtrl = TextEditingController(text: book?.author ?? '');
     final isbnCtrl = TextEditingController(text: book?.isbn ?? '');
-    final categoryCtrl = TextEditingController(text: book?.category ?? 'Huquqshunoslik');
-    final typeCtrl = TextEditingController(text: book?.type ?? 'Darslik');
-    final copiesCtrl = TextEditingController(text: book?.totalCopies.toString() ?? '10');
-    final yearCtrl = TextEditingController(text: book?.publishedYear.toString() ?? '2024');
+    final categoryCtrl = TextEditingController(text: book?.category ?? '');
+    final typeCtrl = TextEditingController(text: book?.type ?? '');
+    final copiesCtrl = TextEditingController(text: book?.totalCopies.toString() ?? '');
+    final yearCtrl = TextEditingController(text: book == null || book.publishedYear == 0 ? '' : book.publishedYear.toString());
     final publisherCtrl = TextEditingController(text: book?.publisher ?? '');
-    final rackCtrl = TextEditingController(text: book?.locationRack ?? 'A-1');
+    final rackCtrl = TextEditingController(text: book?.locationRack ?? '');
 
     final bookProv = context.read<BookProvider>();
 
@@ -346,8 +346,8 @@ class _BooksScreenState extends State<BooksScreen> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           isExpanded: true,
-                          initialValue: bookProv.availableCategories.contains(categoryCtrl.text) ? categoryCtrl.text : (bookProv.availableCategories.isNotEmpty ? bookProv.availableCategories.first : 'Huquqshunoslik'),
-                          decoration: const InputDecoration(labelText: 'Janr / Soha'),
+                          initialValue: bookProv.availableCategories.contains(categoryCtrl.text) ? categoryCtrl.text : null,
+                          decoration: const InputDecoration(labelText: 'Janr / Soha *'),
                           items: bookProv.availableCategories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat, overflow: TextOverflow.ellipsis))).toList(),
                           onChanged: (v) => categoryCtrl.text = v ?? '',
                         ),
@@ -356,8 +356,8 @@ class _BooksScreenState extends State<BooksScreen> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           isExpanded: true,
-                          initialValue: bookProv.availableTypes.contains(typeCtrl.text) ? typeCtrl.text : (bookProv.availableTypes.isNotEmpty ? bookProv.availableTypes.first : 'Darslik'),
-                          decoration: const InputDecoration(labelText: 'Kitob Turi'),
+                          initialValue: bookProv.availableTypes.contains(typeCtrl.text) ? typeCtrl.text : null,
+                          decoration: const InputDecoration(labelText: 'Kitob Turi *'),
                           items: bookProv.availableTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                           onChanged: (v) => typeCtrl.text = v ?? '',
                         ),
@@ -385,23 +385,28 @@ class _BooksScreenState extends State<BooksScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (titleCtrl.text.trim().isEmpty || authorCtrl.text.trim().isEmpty) {
+                final totalCopies = int.tryParse(copiesCtrl.text.trim());
+                if (titleCtrl.text.trim().isEmpty ||
+                    authorCtrl.text.trim().isEmpty ||
+                    categoryCtrl.text.trim().isEmpty ||
+                    typeCtrl.text.trim().isEmpty ||
+                    totalCopies == null ||
+                    totalCopies <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Iltimos, kitob nomi va muallifini kiriting!')),
+                    const SnackBar(content: Text('Iltimos, kitob nomi, muallifi, janri, turi va nusxalar sonini kiriting!')),
                   );
                   return;
                 }
 
-                final totalCopies = int.tryParse(copiesCtrl.text) ?? 1;
-                final year = int.tryParse(yearCtrl.text) ?? 2024;
+                final year = int.tryParse(yearCtrl.text.trim()) ?? 0;
 
                 final newBook = BookModel(
                   id: isEditing ? book.id : 'bk_${DateTime.now().millisecondsSinceEpoch}',
                   title: titleCtrl.text.trim(),
                   author: authorCtrl.text.trim(),
                   isbn: isbnCtrl.text.trim().isEmpty ? 'ISBN-${DateTime.now().millisecondsSinceEpoch}' : isbnCtrl.text.trim(),
-                  category: categoryCtrl.text.trim().isEmpty ? 'Huquqshunoslik' : categoryCtrl.text.trim(),
-                  type: typeCtrl.text.trim().isEmpty ? 'Darslik' : typeCtrl.text.trim(),
+                  category: categoryCtrl.text.trim(),
+                  type: typeCtrl.text.trim(),
                   totalCopies: totalCopies,
                   availableCopies: isEditing ? (book.availableCopies + (totalCopies - book.totalCopies)).clamp(0, totalCopies) : totalCopies,
                   publishedYear: year,
@@ -438,7 +443,7 @@ class _BooksScreenState extends State<BooksScreen> {
     if (result == null || !context.mounted) return;
 
     final data = result;
-    final authorCtrl = TextEditingController(text: 'Noma\'lum');
+    final authorCtrl = TextEditingController();
     String category = prov.availableCategories.isNotEmpty ? prov.availableCategories.first : 'Umumiy';
     String type = prov.availableTypes.isNotEmpty ? prov.availableTypes.first : 'Darslik';
     bool importing = false;
@@ -526,7 +531,7 @@ class _BooksScreenState extends State<BooksScreen> {
                             controller: authorCtrl,
                             enabled: !importing,
                             style: const TextStyle(color: Colors.white),
-                            decoration: const InputDecoration(labelText: 'Muallif'),
+                            decoration: const InputDecoration(labelText: 'Muallif', hintText: 'Noma\'lum'),
                           ),
                         ),
                       ],

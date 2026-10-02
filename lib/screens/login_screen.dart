@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/app_theme.dart';
 import 'main_navigation_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,21 +14,56 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _usernameCtrl = TextEditingController(text: 'admin');
-  final TextEditingController _passwordCtrl = TextEditingController(text: '123456');
+  final TextEditingController _usernameCtrl = TextEditingController();
+  final TextEditingController _passwordCtrl = TextEditingController();
+  final TextEditingController _confirmCtrl = TextEditingController();
   bool _obscurePassword = true;
   String? _errorMessage;
+  bool _isLoading = true;
+  bool _isSetup = false; // Administrator hisobi hali yaratilmagan
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<AuthProvider>().hasAccount().then((exists) {
+      if (mounted) {
+        setState(() {
+          _isSetup = !exists;
+          _isLoading = false;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
+    _confirmCtrl.dispose();
     super.dispose();
   }
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
+    if (_isLoading) return;
     final authProv = context.read<AuthProvider>();
-    final success = authProv.login(_usernameCtrl.text, _passwordCtrl.text);
+
+    if (_isSetup) {
+      final error = AuthProvider.validate(_usernameCtrl.text, _passwordCtrl.text) ??
+          (_passwordCtrl.text != _confirmCtrl.text ? 'Parollar bir xil emas' : null);
+      if (error != null) {
+        setState(() => _errorMessage = error);
+        return;
+      }
+    }
+
+    setState(() => _isLoading = true);
+    bool success = true;
+    if (_isSetup) {
+      await authProv.createAccount(_usernameCtrl.text, _passwordCtrl.text);
+    } else {
+      success = await authProv.login(_usernameCtrl.text, _passwordCtrl.text);
+    }
+    if (!mounted) return;
 
     if (success) {
       Navigator.of(context).pushReplacement(
@@ -37,7 +71,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } else {
       setState(() {
-        _errorMessage = 'Login yoki parol xato! (Standart: admin / 123456)';
+        _isLoading = false;
+        _errorMessage = 'Login yoki parol xato!';
       });
     }
   }
@@ -108,10 +143,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'KUTUBXONA TIZIMIGA KIRISH',
+                  Text(
+                    _isSetup ? 'ADMINISTRATOR HISOBINI YARATISH' : 'KUTUBXONA TIZIMIGA KIRISH',
                     style: AppTextStyles.titleSubHeader,
                   ),
+                  if (_isSetup) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Tizimdan birinchi marta foydalanilmoqda. Kirish uchun login va parol o\'ylab toping.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                  ],
                   const SizedBox(height: 24),
 
                   if (_errorMessage != null) ...[
@@ -164,6 +207,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     onSubmitted: (_) => _handleLogin(),
                   ),
+                  if (_isSetup) ...[
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _confirmCtrl,
+                      obscureText: _obscurePassword,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Parolni takrorlang',
+                        prefixIcon: Icon(Icons.lock_reset, color: AppColors.goldPrimary),
+                      ),
+                      onSubmitted: (_) => _handleLogin(),
+                    ),
+                  ],
                   const SizedBox(height: 28),
 
                   // Submit Button
@@ -171,7 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: _handleLogin,
+                      onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.goldPrimary,
                         foregroundColor: AppColors.backgroundDark,
@@ -179,25 +235,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'TIZIMGA KIRISH',
+                      child: Text(
+                        _isSetup ? 'HISOBNI YARATISH' : 'TIZIMGA KIRISH',
                         style: AppTextStyles.buttonText,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Offline Hint
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.darkTheme.cardColor,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: const Text(
-                      'Standart Login: admin | Parol: 123456',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 11),
                     ),
                   ),
                 ],

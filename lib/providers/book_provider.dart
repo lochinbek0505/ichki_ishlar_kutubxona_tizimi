@@ -4,6 +4,7 @@ import '../models/book_model.dart';
 import '../models/book_type_model.dart';
 import '../models/genre_model.dart';
 import '../services/database_service.dart';
+import '../services/excel_import_service.dart';
 
 class BookProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.instance;
@@ -111,6 +112,70 @@ class BookProvider extends ChangeNotifier {
   Future<void> deleteBook(String id) async {
     await _db.deleteBook(id);
     await loadBooks();
+  }
+
+  /// Excel hisobotidagi kitoblarni fondga yuklaydi.
+  /// Nomi va nashr yili bir xil kitob mavjud bo'lsa, nusxalar soni yangilanadi
+  /// (berilgan kitoblar hisobi saqlanib qoladi). Qaytaradi: (qo'shildi, yangilandi).
+  Future<(int, int)> importBooksFromExcel(
+    List<ExcelBookRow> rows, {
+    required String category,
+    required String type,
+    required String author,
+  }) async {
+    String key(String title, int year) => '${title.trim().toLowerCase()}|$year';
+
+    final existing = {for (final b in _books) key(b.title, b.publishedYear): b};
+
+    // Faylning o'zida takrorlangan kitoblarni birlashtiramiz
+    final merged = <String, ExcelBookRow>{};
+    for (final row in rows) {
+      final k = key(row.title, row.publishedYear);
+      final prev = merged[k];
+      merged[k] = prev == null
+          ? row
+          : ExcelBookRow(
+              rowNumber: prev.rowNumber,
+              title: prev.title,
+              publishedYear: prev.publishedYear,
+              copies: prev.copies + row.copies,
+              sum: prev.sum + row.sum,
+            );
+    }
+
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final toSave = <BookModel>[];
+    var added = 0, updated = 0;
+    var i = 0;
+    for (final entry in merged.entries) {
+      final row = entry.value;
+      final old = existing[entry.key];
+      if (old != null) {
+        final issued = old.totalCopies - old.availableCopies;
+        toSave.add(old.copyWith(
+          totalCopies: row.copies,
+          availableCopies: (row.copies - issued).clamp(0, row.copies),
+        ));
+        updated++;
+      } else {
+        toSave.add(BookModel(
+          id: 'bk_xl_${ts}_${i++}',
+          title: row.title,
+          author: author,
+          isbn: 'INV-${row.rowNumber}',
+          category: category,
+          type: type,
+          totalCopies: row.copies,
+          availableCopies: row.copies,
+          publishedYear: row.publishedYear,
+        ));
+        added++;
+      }
+    }
+
+    await _db.upsertBooks(toSave);
+    await loadBooks();
+    return (added, updated);
   }
 
   // --- JANRLAR CRUD ---

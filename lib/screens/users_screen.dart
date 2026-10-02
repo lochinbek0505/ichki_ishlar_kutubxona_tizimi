@@ -99,14 +99,15 @@ class _UsersScreenState extends State<UsersScreen> {
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<String?>(
+                    isExpanded: true,
                     initialValue: userProv.selectedBosqichIdFilter,
                     decoration: const InputDecoration(
                       labelText: 'Bosqich (Kurs)',
                       contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('Barcha bosqichlar')),
-                      ...userProv.bosqichlar.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))),
+                      const DropdownMenuItem(value: null, child: Text('Barcha bosqichlar', overflow: TextOverflow.ellipsis)),
+                      ...userProv.bosqichlar.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name, overflow: TextOverflow.ellipsis))),
                     ],
                     onChanged: (val) => userProv.setBosqichFilter(val),
                   ),
@@ -117,16 +118,17 @@ class _UsersScreenState extends State<UsersScreen> {
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<String?>(
+                    isExpanded: true,
                     initialValue: userProv.selectedGuruhIdFilter,
                     decoration: const InputDecoration(
                       labelText: 'Guruh',
                       contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('Barcha guruhlar')),
+                      const DropdownMenuItem(value: null, child: Text('Barcha guruhlar', overflow: TextOverflow.ellipsis)),
                       ...userProv.guruhlar
                           .where((g) => userProv.selectedBosqichIdFilter == null || g.bosqichId == userProv.selectedBosqichIdFilter)
-                          .map((g) => DropdownMenuItem(value: g.id, child: Text(g.name))),
+                          .map((g) => DropdownMenuItem(value: g.id, child: Text(g.name, overflow: TextOverflow.ellipsis))),
                     ],
                     onChanged: (val) => userProv.setGuruhFilter(val),
                   ),
@@ -286,11 +288,12 @@ class _UsersScreenState extends State<UsersScreen> {
                       const SizedBox(height: 10),
 
                       DropdownButtonFormField<String?>(
+                        isExpanded: true,
                         initialValue: selectedBosqichId,
                         decoration: const InputDecoration(labelText: 'Bosqich (Kurs)'),
                         items: [
-                          const DropdownMenuItem(value: null, child: Text('Tanlanmagan')),
-                          ...userProv.bosqichlar.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))),
+                          const DropdownMenuItem(value: null, child: Text('Tanlanmagan', overflow: TextOverflow.ellipsis)),
+                          ...userProv.bosqichlar.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name, overflow: TextOverflow.ellipsis))),
                         ],
                         onChanged: (v) {
                           setDialogState(() {
@@ -302,11 +305,12 @@ class _UsersScreenState extends State<UsersScreen> {
                       const SizedBox(height: 10),
 
                       DropdownButtonFormField<String?>(
+                        isExpanded: true,
                         initialValue: selectedGuruhId,
                         decoration: const InputDecoration(labelText: 'Guruh'),
                         items: [
-                          const DropdownMenuItem(value: null, child: Text('Tanlanmagan')),
-                          ...filteredGuruhlar.map((g) => DropdownMenuItem(value: g.id, child: Text(g.name))),
+                          const DropdownMenuItem(value: null, child: Text('Tanlanmagan', overflow: TextOverflow.ellipsis)),
+                          ...filteredGuruhlar.map((g) => DropdownMenuItem(value: g.id, child: Text(g.name, overflow: TextOverflow.ellipsis))),
                         ],
                         onChanged: (v) => setDialogState(() => selectedGuruhId = v),
                       ),

@@ -44,6 +44,8 @@ dependencies:
   intl: ^0.20.2
   fl_chart: ^1.1.0
   google_fonts: ^8.2.1
+  archive: ^4.0.9
+  xml: ^6.6.1
 
 dev_dependencies:
   flutter_test:

@@ -7,11 +7,11 @@ import 'package:printing/printing.dart';
 import '../models/user_model.dart';
 
 class PdfExportService {
+
   static final PdfExportService instance = PdfExportService._internal();
 
   PdfExportService._internal();
 
-  /// A'zolik kartasini PDF shaklida yaratadi
   Future<Uint8List> generateReaderCardPdf(UserModel user) async {
     final pdf = pw.Document();
 
@@ -112,12 +112,11 @@ class PdfExportService {
                 ),
                 pw.SizedBox(height: 10),
 
-                // Main Content Body
                 pw.Expanded(
                   child: pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      // Rasm joyi
+
                       pw.Container(
                         width: 70,
                         height: 90,

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/book_model.dart';
 import '../providers/book_provider.dart';
+import '../services/excel_import_service.dart';
 import '../theme/app_colors.dart';
 
 class BooksScreen extends StatefulWidget {
@@ -68,6 +69,15 @@ class _BooksScreenState extends State<BooksScreen> {
                   ),
                   const SizedBox(width: 10),
 
+                  // Import from Excel button
+                  OutlinedButton.icon(
+                    onPressed: () => _importFromExcel(context, bookProv),
+                    icon: const Icon(Icons.upload_file, size: 16, color: Colors.lightBlueAccent),
+                    label: const Text('Excel\'dan Yuklash', style: TextStyle(color: Colors.lightBlueAccent)),
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.lightBlueAccent)),
+                  ),
+                  const SizedBox(width: 10),
+
                   // Add Book button
                   ElevatedButton.icon(
                     onPressed: () => _showAddEditBookDialog(context),
@@ -119,14 +129,15 @@ class _BooksScreenState extends State<BooksScreen> {
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<String?>(
+                    isExpanded: true,
                     initialValue: bookProv.selectedCategoryFilter,
                     decoration: const InputDecoration(
                       labelText: 'Janr / Soha',
                       contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('Barcha janrlar')),
-                      ...bookProv.availableCategories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))),
+                      const DropdownMenuItem(value: null, child: Text('Barcha janrlar', overflow: TextOverflow.ellipsis)),
+                      ...bookProv.availableCategories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat, overflow: TextOverflow.ellipsis))),
                     ],
                     onChanged: (val) => bookProv.setCategoryFilter(val),
                   ),
@@ -137,14 +148,15 @@ class _BooksScreenState extends State<BooksScreen> {
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<String?>(
+                    isExpanded: true,
                     initialValue: bookProv.selectedTypeFilter,
                     decoration: const InputDecoration(
                       labelText: 'Kitob Turi',
                       contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('Barcha turlari')),
-                      ...bookProv.availableTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))),
+                      const DropdownMenuItem(value: null, child: Text('Barcha turlari', overflow: TextOverflow.ellipsis)),
+                      ...bookProv.availableTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))),
                     ],
                     onChanged: (val) => bookProv.setTypeFilter(val),
                   ),
@@ -333,18 +345,20 @@ class _BooksScreenState extends State<BooksScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: bookProv.availableCategories.contains(categoryCtrl.text) ? categoryCtrl.text : (bookProv.availableCategories.isNotEmpty ? bookProv.availableCategories.first : 'Huquqshunoslik'),
                           decoration: const InputDecoration(labelText: 'Janr / Soha'),
-                          items: bookProv.availableCategories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+                          items: bookProv.availableCategories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat, overflow: TextOverflow.ellipsis))).toList(),
                           onChanged: (v) => categoryCtrl.text = v ?? '',
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: bookProv.availableTypes.contains(typeCtrl.text) ? typeCtrl.text : (bookProv.availableTypes.isNotEmpty ? bookProv.availableTypes.first : 'Darslik'),
                           decoration: const InputDecoration(labelText: 'Kitob Turi'),
-                          items: bookProv.availableTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                          items: bookProv.availableTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                           onChanged: (v) => typeCtrl.text = v ?? '',
                         ),
                       ),
@@ -406,6 +420,154 @@ class _BooksScreenState extends State<BooksScreen> {
               child: Text(isEditing ? 'Saqlash' : 'Qo\'shish'),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Future<void> _importFromExcel(BuildContext context, BookProvider prov) async {
+    final messenger = ScaffoldMessenger.of(context);
+    ExcelImportResult? result;
+    try {
+      result = await ExcelImportService.instance.pickAndParse();
+    } catch (e) {
+      final msg = e is FormatException ? e.message : e.toString();
+      messenger.showSnackBar(SnackBar(content: Text('Excel faylni o\'qishda xatolik: $msg')));
+      return;
+    }
+    if (result == null || !context.mounted) return;
+
+    final data = result;
+    final authorCtrl = TextEditingController(text: 'Noma\'lum');
+    String category = prov.availableCategories.isNotEmpty ? prov.availableCategories.first : 'Umumiy';
+    String type = prov.availableTypes.isNotEmpty ? prov.availableTypes.first : 'Darslik';
+    bool importing = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.cardDark,
+              title: const Text('Excel\'dan Kitoblarni Yuklash', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: SizedBox(
+                width: 620,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(data.fileName, style: const TextStyle(color: AppColors.goldPrimary, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${data.rows.length} turdagi kitob, jami ${data.totalCopies} nusxa topildi',
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      height: 220,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.cardBorder),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListView.separated(
+                        itemCount: data.rows.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.cardBorder),
+                        itemBuilder: (_, i) {
+                          final row = data.rows[i];
+                          return ListTile(
+                            dense: true,
+                            leading: Text('${row.rowNumber}', style: const TextStyle(color: AppColors.textMuted)),
+                            title: Text(row.title, style: const TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis),
+                            trailing: Text(
+                              '${row.publishedYear == 0 ? '—' : row.publishedYear}  •  ${row.copies} dona',
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Excel faylda muallif, janr va tur ko\'rsatilmagan — yangi kitoblarga quyidagi qiymatlar beriladi. '
+                      'Fondda nomi va yili bir xil kitob bo\'lsa, faqat nusxalar soni yangilanadi.',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: category,
+                            decoration: const InputDecoration(labelText: 'Janr / Soha'),
+                            items: {...prov.availableCategories, category}
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)))
+                                .toList(),
+                            onChanged: importing ? null : (v) => category = v ?? category,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: type,
+                            decoration: const InputDecoration(labelText: 'Kitob Turi'),
+                            items: {...prov.availableTypes, type}
+                                .map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis)))
+                                .toList(),
+                            onChanged: importing ? null : (v) => type = v ?? type,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: authorCtrl,
+                            enabled: !importing,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(labelText: 'Muallif'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: importing ? null : () => Navigator.pop(ctx),
+                  child: const Text('Bekor qilish', style: TextStyle(color: AppColors.textMuted)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: importing
+                      ? null
+                      : () async {
+                          setDialogState(() => importing = true);
+                          try {
+                            final (added, updated) = await prov.importBooksFromExcel(
+                              data.rows,
+                              category: category,
+                              type: type,
+                              author: authorCtrl.text.trim().isEmpty ? 'Noma\'lum' : authorCtrl.text.trim(),
+                            );
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            messenger.showSnackBar(SnackBar(
+                              content: Text('Import yakunlandi: $added ta yangi kitob qo\'shildi, $updated ta yangilandi.'),
+                            ));
+                          } catch (e) {
+                            setDialogState(() => importing = false);
+                            messenger.showSnackBar(SnackBar(content: Text('Import xatoligi: $e')));
+                          }
+                        },
+                  icon: importing
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.download_done, size: 18),
+                  label: Text(importing ? 'Yuklanmoqda...' : 'Import qilish'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

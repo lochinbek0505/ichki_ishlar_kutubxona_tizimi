@@ -489,6 +489,18 @@ class DatabaseService {
     await db.delete('books', where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Ko'p kitoblarni bitta tranzaksiyada qo'shish/yangilash (Excel import uchun)
+  Future<void> upsertBooks(List<BookModel> books) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final book in books) {
+        batch.insert('books', book.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   // --- BOOK ISSUES CRUD ---
   Future<List<BookIssueModel>> getBookIssues() async {
     final db = await database;

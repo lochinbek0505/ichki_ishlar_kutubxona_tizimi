@@ -303,12 +303,16 @@ class _BookIssueScreenState extends State<BookIssueScreen> {
 
                     // User Selection Dropdown
                     DropdownButtonFormField<UserModel>(
+                      isExpanded: true,
                       initialValue: selectedUser,
                       decoration: const InputDecoration(labelText: 'O\'quvchi / Kursantni Tanlang (Alifbo tartibida) *'),
                       items: filteredUsers.map((u) {
                         return DropdownMenuItem(
                           value: u,
-                          child: Text('${u.fullName} (${u.guruhName ?? u.bosqichName ?? 'Kursant'})'),
+                          child: Text(
+                            '${u.fullName} (${u.guruhName ?? u.bosqichName ?? 'Kursant'})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         );
                       }).toList(),
                       onChanged: (v) => setDialogState(() => selectedUser = v),
@@ -317,12 +321,16 @@ class _BookIssueScreenState extends State<BookIssueScreen> {
 
                     // Book selection
                     DropdownButtonFormField<BookModel>(
+                      isExpanded: true,
                       initialValue: selectedBook,
                       decoration: const InputDecoration(labelText: 'Mavjud Kitobni Tanlang *'),
                       items: availableBooks.map((b) {
                         return DropdownMenuItem(
                           value: b,
-                          child: Text('${b.title} (Mavjud: ${b.availableCopies} ta)'),
+                          child: Text(
+                            '${b.title} (Mavjud: ${b.availableCopies} ta)',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         );
                       }).toList(),
                       onChanged: (v) => setDialogState(() => selectedBook = v),
